@@ -1,3 +1,5 @@
+# More details can be found in TechToTinker.blogspot.com 
+# George Bantique | tech.to.tinker@gmail.com
 import machine
 import utime
 from machine import UART, Pin, Timer
@@ -11,9 +13,11 @@ from micropython import const
 from ota import OTAUpdater
 from WifiConfig import SSID, PASSWORD
 from DspPattern import Pattern
+from globvars import Version, TestOne, TestTwo
+from globvars import SETVOL, FOLDERS, LISTS, TRACKS, SINGLE, TEST
+from globvars import MUTETAG, LOWTAG, NOMTAG, HIGHTAG, LOUDTAG
+from globvars import VOLMUTE, VOLLOW, VOLNOM, VOLHIGH, VOLLOUD, VolCurr
 
-TestOne = False
-TestTwo = False
 
 ################################################################
 # different versions have different pin assignments
@@ -25,28 +29,6 @@ else:
     Irs = 5
     FolderList = [1,2,3,4]
 
-# RFID commands for the MusicBox
-# two bytes at block 8
-# 1st byte: cmd
-SETVOL     = const(1)            # set volume
-FOLDERS    = const(2)            # play folder (no longer used)
-LISTS      = const(3)            # play list
-TRACKS     = const(4)            # dynamic list (tracks defined in the tag)
-SINGLE     = const(5)
-TEST       = const(99)
-
-# 2nd byte for set volume
-MUTETAG    = const(10)
-LOWTAG     = const(11)
-NOMTAG     = const(12)
-HIGHTAG    = const(13)
-LOUDTAG    = const(14)
-VOLMUTE    = const(0)
-VOLLOW     = const(11)
-VOLNOM     = const(18)
-VOLHIGH    = const(25)
-VOLLOUD    = const(30)
-VolCurr    = VOLNOM
 
 #LED constants and variables
 #LED displays using HC595
@@ -90,6 +72,7 @@ def ir_callback(data, addr, ctrl):
     if data > 0:
         ir_data = data
         ir_addr = addr
+        #print('Data {:02x} Addr {:04x}'.format(data, addr))
 
 ####################################################################
 # DFPlayer routines
