@@ -12,9 +12,6 @@ from ota import OTAUpdater
 from WifiConfig import SSID, PASSWORD
 from DspPattern import Pattern
 
-print(f"{SSID}, {PASSWORD}")
-
-Version = 4
 TestOne = False
 TestTwo = False
 
@@ -93,7 +90,6 @@ def ir_callback(data, addr, ctrl):
     if data > 0:
         ir_data = data
         ir_addr = addr
-        #print('Data {:02x} Addr {:04x}'.format(data, addr))
 
 ####################################################################
 # DFPlayer routines
