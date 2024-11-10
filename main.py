@@ -17,7 +17,7 @@ from DspPattern import Pattern
 print(f"{SSID}, {PASSWORD}")
 
 Version = 4
-TestOne = True
+TestOne = False
 TestTwo = False
 
 ################################################################
@@ -741,4 +741,5 @@ while True:
         TicCurr = utime.ticks_ms()
         nndif = utime.ticks_diff(TicCurr, TicLast)
     TicLast = TicCurr
+
 
