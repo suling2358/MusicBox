@@ -10,7 +10,9 @@ from array import *
 from ir_rx.nec import NEC_16
 from ir_rx.print_error import print_error
 from micropython import const
+from ota import OTAUpdater
 from WifiConfig import SSID, PASSWORD
+from DspPattern import Pattern
 
 print(f"{SSID}, {PASSWORD}")
 
@@ -75,6 +77,10 @@ LData3 = 0xBB
 Srclk.value(0)
 Rclk.value(1)
 
+PatMax  = len(Pattern)
+PatNext = 0
+PatCnt  = 0
+PatChg  = 1
 
 ####################################################################
 # Pre-defined Subroutines
@@ -94,6 +100,88 @@ def ir_callback(data, addr, ctrl):
 ####################################################################
 # DFPlayer routines
 ####################################################################
+
+####################################################################
+# PlayPlayList: starts playing the a list of tracks
+####################################################################
+def PlayPlayList(pidx):
+    global PlayList
+    global PListCurr
+    global TrackCurr
+    global ModeCurr
+    global PlayMode
+    
+    if (pidx >= len(PlayList)):
+        return
+    
+    PListCurr = pidx
+    TrackCurr = 0
+    tfolder = PlayList[PListCurr][TrackCurr][0]
+    ttrack  = PlayList[PListCurr][TrackCurr][1]
+    
+    player.setVolume(VolCurr)
+    player.playTrack(tfolder, ttrack)
+    print(f"playing {tfolder},{ttrack}")
+    
+    # turn on one of the four LED under the keys
+    BtnLedOne(tfolder)
+    
+    PlayMode = LISTS
+    return
+
+####################################################################
+# NextPlayList: play the next track in the list
+####################################################################
+def NextPlayList():
+    global PlayList
+    global PListCurr
+    global TrackCurr
+    global PlayMode
+    global ListLen
+    global LockCnt
+        
+    LockCnt = 0
+    TrackCurr = TrackCurr + 1
+    # check to seeif we are at the end of the list
+    if (TrackCurr >= ListLen):
+        PlistCurr = -1
+        TrackCurr = 0
+        PlayMode  = IDLE
+        BtnLedOff()
+        return
+    else:
+        tfolder = PlayList[PListCurr][TrackCurr][0]
+        ttrack  = PlayList[PListCurr][TrackCurr][1]
+        print(f"playing {tfolder}, {ttrack} {LockCnt}")
+        player.setVolume(VolCurr)
+        player.playTrack(tfolder, ttrack)
+        LockCnt = 0
+        return
+
+####################################################################
+# PlaySingleTrack: play just one track from a folder
+####################################################################
+def PlaySingleTrack(fidx,tidx):
+    global PListCurr
+    global TrackCurr
+    global ModeCurr
+    global PlayMode
+    
+
+    PListCurr = 0
+    TrackCurr = tidx
+    tfolder   = fidx
+    ttrack    = tidx
+    print(f"playing {tfolder}, {ttrack}")
+    
+    player.setVolume(VolCurr)
+    player.playTrack(tfolder, ttrack)
+    
+    # turn on one of the four LED under the keys
+    BtnLedOne(tfolder)
+    
+    PlayMode = SINGLE
+    return
 
 ####################################################################
 # Volume control Section
@@ -133,6 +221,58 @@ def WriteVol():
     configFile=open('volume','w')
     configFile.write(repr(VolCurr))
     configFile.close()
+
+################################################################
+#LED Display Routine
+################################################################
+#Push out one byte
+def DspByte(idx):
+    global Pattern
+    global Ser0
+    global Ser1
+    global Ser2
+    global Ser3
+    global Srclk
+    global Rclk
+    
+    lc0 = Pattern[idx][0]
+    lc1 = Pattern[idx][1]
+    lc2 = Pattern[idx][2]
+    lc3 = Pattern[idx][3]
+    #print(idx,lc0,lc1,lc2,lc3)
+
+    for i in range(8):
+        #and out last bit
+        Ser0.value(lc0 & 0x1)
+        Ser1.value(lc1 & 0x1)
+        Ser2.value(lc2 & 0x1)
+        Ser3.value(lc3 & 0x1)
+        #clock in this bit
+        Srclk.value(1)
+        utime.sleep_us(2)
+        Srclk.value(0)
+        lc0 = lc0 >> 1
+        lc1 = lc1 >> 1
+        lc2 = lc2 >> 1
+        lc3 = lc3 >> 1
+
+    #Done shifting, display output        
+    Rclk.value(1)
+    utime.sleep_us(2)
+    Rclk.value(0)   
+            
+#Display pattern
+def DspPattern():
+    global LData0
+    global LData1
+    global LData2
+    global LData3
+    global Pattern
+    
+    for i in range(MaxPat):
+        DspByte(i)
+        #sleep(4)
+    return
 
 ################################################################
 # turn off all button leds
@@ -226,6 +366,8 @@ def timer_callback():
     global PlayMode
     global ListLen
     global InActivity
+    global SSID
+    global PASSWORD
     
     ##########################################################
     # track inactivity; after 30 minutes turn OFF most lights
@@ -318,19 +460,6 @@ def timer_callback():
             ListLen = len(PlayList[0])
             PlayPlayList(0)
             return
-                elif (tagcmd == TRACKS):
-            nn = TagVal[1]
-            print(f"Dynamic List {nn}")
-            
-            PlayList[0] = []
-            j = 2
-            for i in range(nn):
-                PlayList[0].append([TagVal[j],TagVal[j+1]])
-                j = j + 2
-            print(PlayList[0])
-            ListLen = len(PlayList[0])
-            PlayPlayList(0)
-            return
         
         ###############################################################
         # Test, Maintence
@@ -343,6 +472,7 @@ def timer_callback():
             # update software
             #######################################################
             if (nn == 2):
+                print("updating software")
                 firmware_url = "https://raw.githubusercontent.com/suling2358/MusicBox/refs/heads/"
                 ota_updater = OTAUpdater(SSID, PASSWORD, firmware_url, "main.py")
                 ota_updater.download_and_install_update_if_available()                
