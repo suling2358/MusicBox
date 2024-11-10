@@ -468,6 +468,35 @@ def timer_callback():
             ListLen = len(PlayList[0])
             PlayPlayList(0)
             return
+                elif (tagcmd == TRACKS):
+            nn = TagVal[1]
+            print(f"Dynamic List {nn}")
+            
+            PlayList[0] = []
+            j = 2
+            for i in range(nn):
+                PlayList[0].append([TagVal[j],TagVal[j+1]])
+                j = j + 2
+            print(PlayList[0])
+            ListLen = len(PlayList[0])
+            PlayPlayList(0)
+            return
+        
+        ###############################################################
+        # Test, Maintence
+        ###############################################################           
+        elif (tagcmd == TEST):
+            nn = TagVal[1]
+            print(f"Maintenence {nn}")
+            
+            #######################################################
+            # update software
+            #######################################################
+            if (nn == 2):
+                firmware_url = "https://raw.githubusercontent.com/suling2358/MusicBox/refs/heads/"
+                ota_updater = OTAUpdater(SSID, PASSWORD, firmware_url, "main.py")
+                ota_updater.download_and_install_update_if_available()                
+            return        
         return    
             
     ###############################################################
