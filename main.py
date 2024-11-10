@@ -1,5 +1,3 @@
-# More details can be found in TechToTinker.blogspot.com 
-# George Bantique | tech.to.tinker@gmail.com
 import machine
 import utime
 from machine import UART, Pin, Timer
@@ -13,11 +11,15 @@ from micropython import const
 from ota import OTAUpdater
 from WifiConfig import SSID, PASSWORD
 from DspPattern import Pattern
-from globvars import Version, TestOne, TestTwo
+from globvars import Version
 from globvars import SETVOL, FOLDERS, LISTS, TRACKS, SINGLE, TEST
 from globvars import MUTETAG, LOWTAG, NOMTAG, HIGHTAG, LOUDTAG
 from globvars import VOLMUTE, VOLLOW, VOLNOM, VOLHIGH, VOLLOUD, VolCurr
+from globvars import SER0, SER1, SER2, SER3, SRCLK, RCLK
 
+
+TestOne = True
+TestTwo = False
 
 ################################################################
 # different versions have different pin assignments
@@ -29,15 +31,6 @@ else:
     Irs = 5
     FolderList = [1,2,3,4]
 
-
-#LED constants and variables
-#LED displays using HC595
-SER0     = 21
-SER1     = 20
-SER2     = 19
-SER3     = 18
-SRCLK    = 22
-RCLK     = 26
 
 Ser0 = Pin(SER0, Pin.OUT)
 Ser1 = Pin(SER1, Pin.OUT)
