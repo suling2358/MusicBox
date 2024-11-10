@@ -16,6 +16,7 @@ from globvars import SETVOL, FOLDERS, LISTS, TRACKS, SINGLE, TEST
 from globvars import MUTETAG, LOWTAG, NOMTAG, HIGHTAG, LOUDTAG
 from globvars import VOLMUTE, VOLLOW, VOLNOM, VOLHIGH, VOLLOUD, VolCurr
 from globvars import SER0, SER1, SER2, SER3, SRCLK, RCLK
+from globvars import RMVOLUP,RMVOLDN,RMINPUT,RMEXIT,RMAMZN,RMNFLX,RMMGO,RMRED,RMYELLOW,RMBLUE,RMGREEN
 
 
 TestOne = True
@@ -482,17 +483,6 @@ def timer_callback():
     ###################################################################
     # check IR remote for control commands
     ###################################################################
-    RMVOLUP = const(0x02)
-    RMVOLDN = const(0x03)
-    RMINPUT = const(0x2F)
-    RMEXIT  = const(0x49)
-    RMAMZN  = const(0xEA)
-    RMNFLX  = const(0XEB)
-    RMMGO   = const(0xED)
-    RMRED   = const(0x54)
-    RMYELLOW = const(0x52)
-    RMBLUE  = const(0x53)
-    RMGREEN = const(0x55)
     if ir_data > 0:
         print('Data {:02x} Addr {:04x}'.format(ir_data, ir_addr))
         if (ir_data == RMVOLUP):                     # Vol+
@@ -525,8 +515,7 @@ def timer_callback():
             j = FolderList[3-1]
             ListLen = len(PlayList[j])               
             PlayPlayList(j)
-            print(f"yellow {j}")
-            LockCnt = 0
+             LockCnt = 0
         elif (ir_data == RMGREEN):
             j = FolderList[4-1]
             ListLen = len(PlayList[j])               
