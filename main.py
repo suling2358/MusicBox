@@ -515,7 +515,7 @@ def timer_callback():
             j = FolderList[3-1]
             ListLen = len(PlayList[j])               
             PlayPlayList(j)
-             LockCnt = 0
+            LockCnt = 0
         elif (ir_data == RMGREEN):
             j = FolderList[4-1]
             ListLen = len(PlayList[j])               
