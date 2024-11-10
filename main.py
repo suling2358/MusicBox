@@ -135,58 +135,6 @@ def WriteVol():
     configFile.close()
 
 ################################################################
-#LED Display Routine
-################################################################
-#Push out one byte
-def DspByte(idx):
-    global Pattern
-    global Ser0
-    global Ser1
-    global Ser2
-    global Ser3
-    global Srclk
-    global Rclk
-    
-    lc0 = Pattern[idx][0]
-    lc1 = Pattern[idx][1]
-    lc2 = Pattern[idx][2]
-    lc3 = Pattern[idx][3]
-    #print(idx,lc0,lc1,lc2,lc3)
-
-    for i in range(8):
-        #and out last bit
-        Ser0.value(lc0 & 0x1)
-        Ser1.value(lc1 & 0x1)
-        Ser2.value(lc2 & 0x1)
-        Ser3.value(lc3 & 0x1)
-        #clock in this bit
-        Srclk.value(1)
-        utime.sleep_us(2)
-        Srclk.value(0)
-        lc0 = lc0 >> 1
-        lc1 = lc1 >> 1
-        lc2 = lc2 >> 1
-        lc3 = lc3 >> 1
-
-    #Done shifting, display output        
-    Rclk.value(1)
-    utime.sleep_us(2)
-    Rclk.value(0)   
-            
-#Display pattern
-def DspPattern():
-    global LData0
-    global LData1
-    global LData2
-    global LData3
-    global Pattern
-    
-    for i in range(MaxPat):
-        DspByte(i)
-        #sleep(4)
-    return
-
-################################################################
 # turn off all button leds
 ################################################################
 def BtnLedOff():
