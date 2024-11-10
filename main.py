@@ -1,5 +1,3 @@
-# More details can be found in TechToTinker.blogspot.com 
-# George Bantique | tech.to.tinker@gmail.com
 import machine
 import utime
 from machine import UART, Pin, Timer
