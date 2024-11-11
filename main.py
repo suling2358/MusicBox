@@ -256,6 +256,9 @@ def BtnLedOff():
 # turn one LED on
 ################################################################
 def BtnLedOne(idx):
+    global BtnOn
+    global BtnOnFlip
+    
     BtnLedOff()
     j = (idx-1) % 4
     BtnOn     = j
@@ -339,6 +342,8 @@ def timer_callback():
     global InActivity
     global SSID
     global PASSWORD
+    global BtnOn
+    global BtnOnFlip
     
     ##########################################################
     # track inactivity; after 30 minutes turn OFF most lights
@@ -686,7 +691,6 @@ if (TestTwo == True):
     player.playTrack(1, 1)
     while True:
         sleep(1)
-
 
 
 ######################################################################
