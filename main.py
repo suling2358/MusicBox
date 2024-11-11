@@ -19,7 +19,7 @@ from globvars import SER0, SER1, SER2, SER3, SRCLK, RCLK
 from globvars import RMVOLUP,RMVOLDN,RMINPUT,RMEXIT,RMAMZN,RMNFLX,RMMGO,RMRED,RMYELLOW,RMBLUE,RMGREEN
 
 
-TestOne = True
+TestOne = False
 TestTwo = False
 
 ################################################################
