@@ -110,6 +110,7 @@ def NextPlayList():
     global PlayMode
     global ListLen
     global LockCnt
+    global BtnOn
         
     LockCnt = 0
     TrackCurr = TrackCurr + 1
@@ -118,6 +119,7 @@ def NextPlayList():
         PlistCurr = -1
         TrackCurr = 0
         PlayMode  = IDLE
+        BtnOn = 99
         BtnLedOff()
         return
     else:
@@ -566,8 +568,8 @@ def timer_callback():
             # done playing single track
             PlayMode = IDLE
             BtnLedOff()
-
-            print("single")
+            BtnOn = 99
+    
             return
         
 #end of timer_callback
