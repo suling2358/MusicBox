@@ -677,6 +677,14 @@ TicLast = utime.ticks_ms()
 ######################################################################
 # TestOne: Led under the switch
 ######################################################################
+for j in range(3):
+    for i in range(4):
+        BtnArr[i].value(1)
+    utime.sleep_ms(300)
+    for i in range(4):
+        BtnArr[i].value(0)
+    utime.sleep_ms(300)        
+
 if (TestOne == True):
     while True:
         BtnLedOff()
