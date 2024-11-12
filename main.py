@@ -9,16 +9,14 @@ from ir_rx.nec import NEC_16
 from ir_rx.print_error import print_error
 from micropython import const
 from ota import OTAUpdater
-from WifiConfig import SSID, PASSWORD
 from DspPattern import Pattern
 from globvars import Version
-from globvars import SETVOL, FOLDERS, LISTS, TRACKS, SINGLE, TEST
-from globvars import MUTETAG, LOWTAG, NOMTAG, HIGHTAG, LOUDTAG
+from globvars import SETVOL, FOLDERS, LISTS, TRACKS, SINGLE, UPDATE
 from globvars import VOLMUTE, VOLLOW, VOLNOM, VOLHIGH, VOLLOUD, VolCurr
 from globvars import SER0, SER1, SER2, SER3, SRCLK, RCLK
 from globvars import RMVOLUP,RMVOLDN,RMINPUT,RMEXIT,RMAMZN,RMNFLX,RMMGO,RMRED,RMYELLOW,RMBLUE,RMGREEN
 
-
+Release = const(3)
 TestOne = False
 TestTwo = False
 
@@ -273,7 +271,8 @@ def BtnLedOne(idx):
 ################################################################        
 def CheckTag():
     global TagPrvCard
-    global TagVal
+    global TagVal1
+    global TagVal2
     
     reader.init()    
     (stat, tag_type) = reader.request(reader.REQIDL)
@@ -301,18 +300,19 @@ def CheckTag():
                        if uid != uid2:
                            return 0
                        defaultKey = [255,255,255,255,255,255]
-                       #reader.MFRC522_DumpClassic1K(uid,Start=0, End=64, keyA=defaultKey)
-                       #reader.MFRC522_DumpClassic1K(uid,Start=8, End=10, keyA=defaultKey)
+  #
                        absoluteBlock = 8
                        keyA=defaultKey
                        status = reader.authKeys(uid,absoluteBlock,keyA)
                        if status == reader.OK:
-                           status, block = reader.read(absoluteBlock)
-                           #print(f"block {block[0]}")
-                           # This is good for 26 folders (A-Z)
+                           status, block1 = reader.read(absoluteBlock)
+                           absoluteBlock = 9
+                           status, block2 = reader.read(absoluteBlock)                    
                            for i in range(16):
-                               TagVal[i] = block[i]
-                           print(f"Tag {TagVal[0]},{TagVal[1], TagVal[2]}")
+                               TagVal1[i] = block1[i]
+                               TagVal2[i] = block2[i]
+                           print(TagVal1)
+                           print(TagVal2)
                            return 1
                        else:
                            print("auth failed")            
@@ -389,21 +389,13 @@ def timer_callback():
     ################################################################
     retidx = CheckTag()
     if (retidx == 1):
-        tagcmd = TagVal[0]
+        tagcmd = TagVal1[0]
         if (tagcmd == SETVOL):
-            tagval = TagVal[1]
-            if (tagval == MUTETAG):
-                VolCurr = VOLMUTE
-            elif (tagval == LOWTAG):
-                VolCurr = VOLLOW
-            elif (tagval == NOMTAG):
-                VolCurr = VOLNOM
-            elif (tagval == HIGHTAG):
-                VolCurr = VOLHIGH
-            elif (tagval == LOUDTAG):
-                VolCurr = VOLLOUD
-            VolSet(VolCurr)
-            LockCnt = 0
+            volume = TagVal1[2]
+            if (volume >=0) and (volume <= 30):
+                VolCurr = volume
+                VolSet(VolCurr)
+                LockCnt = 0
             return
         
         ###############################################################
@@ -414,10 +406,10 @@ def timer_callback():
             plen = len(PlayList)
             if (TagVal[1] >= plen):
                 return
-            nnfolder = FolderList[TagVal[1]-1]
+            nnfolder = FolderList[TagVal1[1]-1]
             ListLen = len(PlayList[nnfolder])
             PlayPlayList(nnfolder)
-            print(f"playfolder {TagVal[1]},. {nnfolder}")
+            print(f"playfolder {TagVal1[1]},. {nnfolder}")
             LockCnt = 0
             return
         
@@ -426,13 +418,13 @@ def timer_callback():
         # list built in PlayList[0]
         ###############################################################           
         elif (tagcmd == TRACKS):
-            nn = TagVal[1]
+            nn = TagVal1[1]
             print(f"Dynamic List {nn}")
             
             PlayList[0] = []
             j = 2
             for i in range(nn):
-                PlayList[0].append([TagVal[j],TagVal[j+1]])
+                PlayList[0].append([TagVal1[j],TagVal1[j+1]])
                 j = j + 2
             print(PlayList[0])
             ListLen = len(PlayList[0])
@@ -440,20 +432,23 @@ def timer_callback():
             return
         
         ###############################################################
-        # Test, Maintence
+        # Test, Update
         ###############################################################           
-        elif (tagcmd == TEST):
-            nn = TagVal[1]
-            print(f"Maintenence {nn}")
-            
-            #######################################################
-            # update software
-            #######################################################
-            if (nn == 2):
-                print("updating software")
-                firmware_url = "https://raw.githubusercontent.com/suling2358/MusicBox/refs/heads/"
-                ota_updater = OTAUpdater(SSID, PASSWORD, firmware_url, "main.py")
-                ota_updater.download_and_install_update_if_available()                
+        elif (tagcmd == UPDATE):        
+            nn = TagVal1[1]
+            tssid = ""
+            for i in range(nn):
+                tssid = tssid + chr(TagVal1[i+2])
+            nn = TagVal2[1]
+            tpass = ""
+            for i in range(nn):
+                tpass = tpass + chr(TagVal2[i+2])
+            SSID = tssid
+            PASSWORD = tpass
+            firmware_url = "https://raw.githubusercontent.com/suling2358/MusicBox/refs/heads/"
+            ota_updater = OTAUpdater(SSID, PASSWORD, firmware_url, "main.py")
+            ota_updater.download_and_install_update_if_available()
+            LockCnt = 0
             return        
         return    
             
@@ -570,10 +565,8 @@ def timer_callback():
             BtnLedOff()
             BtnOn = 99
     
-            return
-        
+            return       
 #end of timer_callback
-
 
 ####################################################################
 # End of Subroutine Section
@@ -610,7 +603,7 @@ ListCnt    = 0
 # now actually create the instance, reset and read stored volume data
 player=DFPlayer(UART_INSTANCE, TX_PIN, RX_PIN, BUSY_PIN)
 player.reset()
-sleep(2)
+#sleep(2)
 ReadVol()
 
 # setup IR Remote callback
@@ -619,7 +612,7 @@ ir_data = 0
 ir_addr = 0
 ir = NEC_16(Pin(Irs, Pin.IN), ir_callback)
 
-######################################################################
+#####################################################################
 # Keys and Key Led
 ######################################################################
 BTN1     = 10
@@ -652,7 +645,8 @@ BtnLedOff()
 reader = MFRC522(spi_id=0,sck=2,miso=4,mosi=3,cs=1,rst=0)
 TagPrvCard = [0]
 TagCmd     = 0
-TagVal     = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16]
+TagVal1    = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16]
+TagVal2    = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16]
 TagCnt     = 0
 
 ######################################################################
@@ -670,21 +664,27 @@ LockCnt    = 0
 TicLast    = 0
 TicCurr    = 0
 
-print("Go")
+
 TicLast = utime.ticks_ms()
 #Tic = Timer(period=TICPD, mode=Timer.PERIODIC, callback=timer_callback)
 
 ######################################################################
+# flash to indicate release
+######################################################################
+nnrel = Release & 0x1
+BtnArr[3].value(nnrel)
+nnrel = (Release >> 1) & 0x01
+BtnArr[2].value(nnrel)
+nnrel = (Release >> 2) & 0x01
+BtnArr[1].value(nnrel)
+nnrel = (Release >> 3) & 0x01
+BtnArr[0].value(nnrel)
+sleep(3)
+print("Go")
+
+######################################################################
 # TestOne: Led under the switch
 ######################################################################
-for j in range(3):
-    for i in range(4):
-        BtnArr[i].value(1)
-    utime.sleep_ms(300)
-    for i in range(4):
-        BtnArr[i].value(0)
-    utime.sleep_ms(300)        
-
 if (TestOne == True):
     while True:
         BtnLedOff()
