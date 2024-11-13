@@ -16,7 +16,7 @@ from globvars import VOLMUTE, VOLLOW, VOLNOM, VOLHIGH, VOLLOUD, VolCurr
 from globvars import SER0, SER1, SER2, SER3, SRCLK, RCLK
 from globvars import RMVOLUP,RMVOLDN,RMINPUT,RMEXIT,RMAMZN,RMNFLX,RMMGO,RMRED,RMYELLOW,RMBLUE,RMGREEN
 
-Release = const(3)
+Release = const(2)
 TestOne = False
 TestTwo = False
 
@@ -93,7 +93,7 @@ def PlayPlayList(pidx):
     print(f"playing {tfolder},{ttrack}")
     
     # turn on one of the four LED under the keys
-    BtnLedOne(tfolder)
+    BtnLedBlink(tfolder)
     
     PlayMode = LISTS
     return
@@ -149,7 +149,7 @@ def PlaySingleTrack(fidx,tidx):
     player.playTrack(tfolder, ttrack)
     
     # turn on one of the four LED under the keys
-    BtnLedOne(tfolder)
+    BtnLedBlink(tfolder)
     
     PlayMode = SINGLE
     return
@@ -251,11 +251,28 @@ def DspPattern():
 def BtnLedOff():
     for i in range(4):
         BtnArr[i].value(0)
-
+ 
 ################################################################
-# turn one LED on
+# turn om all button leds
 ################################################################
-def BtnLedOne(idx):
+def BtnLedOn():
+    for i in range(4):
+        BtnArr[i].value(1) 
+        
+################################################################
+# Flash Led
+################################################################
+def BtnLedFlash(times):
+    for i in range(times):
+        BtnLedOff()
+        utime.sleep_ms(400)
+        BtnLedOn()
+        utime.sleep_ms(400)
+    BtnLedOff()
+################################################################
+# blink one LED
+################################################################
+def BtnLedBlink(idx):
     global BtnOn
     global BtnOnFlip
     
@@ -445,9 +462,11 @@ def timer_callback():
                 tpass = tpass + chr(TagVal2[i+2])
             SSID = tssid
             PASSWORD = tpass
+            BtnLedOn()
             firmware_url = "https://raw.githubusercontent.com/suling2358/MusicBox/refs/heads/"
             ota_updater = OTAUpdater(SSID, PASSWORD, firmware_url, "main.py")
             ota_updater.download_and_install_update_if_available()
+            BtnLedFlash(5)
             LockCnt = 0
             return        
         return    
@@ -701,7 +720,6 @@ if (TestTwo == True):
     player.playTrack(1, 1)
     while True:
         sleep(1)
-
 
 ######################################################################
 # code loop
