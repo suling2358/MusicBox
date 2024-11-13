@@ -17,7 +17,7 @@ from globvars import VOLMUTE, VOLLOW, VOLNOM, VOLHIGH, VOLLOUD, VolCurr
 from globvars import SER0, SER1, SER2, SER3, SRCLK, RCLK
 from globvars import RMVOLUP,RMVOLDN,RMINPUT,RMEXIT,RMAMZN,RMNFLX,RMMGO,RMRED,RMYELLOW,RMBLUE,RMGREEN
 
-Release = const(2)
+Release = const(3)
 TestOne = False
 TestTwo = False
 
