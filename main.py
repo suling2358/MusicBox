@@ -3,6 +3,7 @@ import utime
 from machine import UART, Pin, Timer
 from utime import sleep_ms, sleep
 from picodfplayer import DFPlayer
+from picodfplayer import WriteVol, ReadVol
 from mfrc522 import MFRC522
 from array import *
 from ir_rx.nec import NEC_16
@@ -64,11 +65,28 @@ def ir_callback(data, addr, ctrl):
     if data > 0:
         ir_data = data
         ir_addr = addr
-        #print('Data {:02x} Addr {:04x}'.format(data, addr))
 
 ####################################################################
 # DFPlayer routines
 ####################################################################
+####################################################################
+# Volume control Section
+# VolSet: sets the volume
+####################################################################
+def VolSet(volidx):
+    global player
+    
+    if (volidx > 30):
+        i = 30
+    elif (volidx < 0):
+        i = 0
+    else:
+        i= volidx
+    VolCurr = i
+    player.setVolume(VolCurr)
+    print(f"setting vol to {VolCurr}")
+    WriteVol(VolCurr)
+
 
 ####################################################################
 # PlayPlayList: starts playing the a list of tracks
@@ -153,45 +171,6 @@ def PlaySingleTrack(fidx,tidx):
     
     PlayMode = SINGLE
     return
-
-####################################################################
-# Volume control Section
-# VolSet: sets the volume
-# read and write volume data saved in NVRAM
-####################################################################
-def VolSet(volidx):
-    global player
-    
-    if (volidx > 30):
-        i = 30
-    elif (volidx < 0):
-        i = 0
-    else:
-        i= volidx
-    player.setVolume(i)
-    print(f"setting vol to {i}")
-    WriteVol()
-    
-
-def ReadVol():
-    global VolCurr
-    
-    try:
-        configFile=open('volume','r')
-        vol=eval(configFile.read())
-        configFile.close()
-    except:
-        vol = VOLNOM
-        
-    VolCurr = vol
-    print(f"Volume {VolCurr}")
-
-def WriteVol():
-    global VolCurr
-    
-    configFile=open('volume','w')
-    configFile.write(repr(VolCurr))
-    configFile.close()
 
 ################################################################
 #LED Display Routine
