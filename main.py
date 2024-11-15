@@ -14,7 +14,7 @@ from DspPattern import Pattern
 from globvars import *
 from fnKeys import *
 
-Release = const(2)
+Release = const(3)
 TestOne = False
 TestTwo = False
 
