@@ -18,6 +18,33 @@ Release = const(5)
 TestOne = False
 TestTwo = False
 
+###################################################################
+# IR remote for control commands - Vzio Remote
+###################################################################
+VZVOLUP  = const(0x02)
+VZVOLDN  = const(0x03)
+VZINPUT  = const(0x2F)
+VZEXIT   = const(0x49)
+VZAMZN   = const(0xEA)
+VZNFLX   = const(0XEB)
+VZMGO    = const(0xED)
+VZRED    = const(0x54)
+VZYELLOW = const(0x52)
+VZBLUE   = const(0x53)
+VZGREEN  = const(0x55)
+
+###################################################################
+# IR remote for control commands - BLS Light
+###################################################################
+BLVOLUP   = const(0x09)
+BLVOLDN   = const(0x07)
+BLCOOL    = const(0x42)
+BLNATURAL = const(0x52)
+BLWARM    = const(0x4A)
+
+
+
+
 ################################################################
 # different versions have different pin assignments
 ################################################################
@@ -74,7 +101,9 @@ def PlayPlayList(pidx):
     global PListCurr
     global TrackCurr
     global ModeCurr
+    global VolCurr
     global PlayMode
+    global BtnArr
     global BtnOn
     
     if (pidx >= len(PlayList)):
@@ -88,6 +117,7 @@ def PlayPlayList(pidx):
     player.setVolume(VolCurr)
     player.playTrack(tfolder, ttrack)
     print(f"playing {tfolder},{ttrack}")
+    BtnLedOff(BtnArr)
     
     BtnOn = tfolder - 1
     
@@ -147,9 +177,8 @@ def PlaySingleTrack(fidx,tidx):
     player.playTrack(tfolder, ttrack)
     
     # turn on one of the four LED under the keys
-    print(f"Btnon {BtnOn}")  
-    BtnOn = BtnLedBlink(BtnArr, tfolder)
-    print(f"*Btnon {BtnOn}")
+    BtnLedOff(BtnArr)
+    BtnOn = (tfolder-1) % 4
             
     PlayMode = SINGLE
     return
@@ -347,9 +376,9 @@ def timer_callback():
         # predefined lists
         ###############################################################
         elif (tagcmd == LISTS):
-            print(f"pre-defined list {TagVal[1]}")
+            print(f"pre-defined list {TagVal1[1]}")
             plen = len(PlayList)
-            if (TagVal[1] >= plen):
+            if (TagVal1[1] >= plen):
                 return
             nnfolder = FolderList[TagVal1[1]-1]
             ListLen = len(PlayList[nnfolder])
@@ -427,43 +456,43 @@ def timer_callback():
     ###################################################################
     if ir_data > 0:
         print('Data {:02x} Addr {:04x}'.format(ir_data, ir_addr))
-        if (ir_data == RMVOLUP):                     # Vol+
+                                                    # Vol +
+        if (ir_data == VZVOLUP) or (ir_data == BLVOLUP):               
             VolCurr = VolCurr + 1
             VolSet(player, VolCurr)
-        elif (ir_data == RMVOLDN):                   # Vol-
+                                                    # Vol -
+        elif (ir_data == VZVOLDN) or (ir_data == BLVOLDN):  
             VolCurr = VolCurr - 1
             VolSet(player, VolCurr)
-        elif (ir_data == RMINPUT):
+        elif (ir_data == VZINPUT):
             PlaySingleTrack(1,1)                     # Input Key
             LockCnt = 0
-        elif (ir_data == RMEXIT):
+        elif (ir_data == VZEXIT):
             PlaySingleTrack(2,5)                     # Exit Key
             LockCnt = 0
-        elif (ir_data == RMAMZN):
+        elif (ir_data == VZAMZN):
             PlaySingleTrack(2,1)                     # Amazon
             LockCnt = 0
-        elif (ir_data == RMNFLX):
+        elif (ir_data == VZNFLX):
             PlaySingleTrack(2,2)                     # Netflix
             LockCnt = 0
-        elif (ir_data == RMMGO):
+        elif (ir_data == VZMGO):
             PlaySingleTrack(2,5)                     # MGO
             LockCnt = 0
-        elif (ir_data == RMRED):
+        elif (ir_data == VZRED):
             j = FolderList[1-1]
             ListLen = len(PlayList[j])               # Red button
             PlayPlayList(j)
             LockCnt = 0
-        elif (ir_data == RMYELLOW):
-            j = FolderList[3-1]
-            ListLen = len(PlayList[j])               
-            PlayPlayList(j)
+        elif (ir_data == VZYELLOW) or (ir_data == BLNATURAL):
+            PlaySingleTrack(3,10) 
             LockCnt = 0
-        elif (ir_data == RMGREEN):
+        elif (ir_data == VZGREEN):
             j = FolderList[4-1]
             ListLen = len(PlayList[j])               
             PlayPlayList(j)
             LockCnt = 0
-        elif (ir_data == RMBLUE):
+        elif (ir_data == VZBLUE):
             j = FolderList[2-1]
             ListLen = len(PlayList[j])               
             PlayPlayList(j)
