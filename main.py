@@ -3,7 +3,7 @@ import utime
 from machine import UART, Pin, Timer
 from utime import sleep_ms, sleep
 from picodfplayer import DFPlayer
-from picodfplayer import WriteVol, ReadVol
+from picodfplayer import VolSet, WriteVol, ReadVol
 from mfrc522 import MFRC522
 from array import *
 from ir_rx.nec import NEC_16
@@ -11,13 +11,10 @@ from ir_rx.print_error import print_error
 from micropython import const
 from ota import OTAUpdater
 from DspPattern import Pattern
-from globvars import Version
-from globvars import SETVOL, FOLDERS, LISTS, TRACKS, SINGLE, UPDATE
-from globvars import VOLMUTE, VOLLOW, VOLNOM, VOLHIGH, VOLLOUD, VolCurr
-from globvars import SER0, SER1, SER2, SER3, SRCLK, RCLK
-from globvars import RMVOLUP,RMVOLDN,RMINPUT,RMEXIT,RMAMZN,RMNFLX,RMMGO,RMRED,RMYELLOW,RMBLUE,RMGREEN
+from globvars import *
+from fnKeys import *
 
-Release = const(3)
+Release = const(2)
 TestOne = False
 TestTwo = False
 
@@ -70,25 +67,6 @@ def ir_callback(data, addr, ctrl):
 # DFPlayer routines
 ####################################################################
 ####################################################################
-# Volume control Section
-# VolSet: sets the volume
-####################################################################
-def VolSet(volidx):
-    global player
-    
-    if (volidx > 30):
-        i = 30
-    elif (volidx < 0):
-        i = 0
-    else:
-        i= volidx
-    VolCurr = i
-    player.setVolume(VolCurr)
-    print(f"setting vol to {VolCurr}")
-    WriteVol(VolCurr)
-
-
-####################################################################
 # PlayPlayList: starts playing the a list of tracks
 ####################################################################
 def PlayPlayList(pidx):
@@ -97,6 +75,7 @@ def PlayPlayList(pidx):
     global TrackCurr
     global ModeCurr
     global PlayMode
+    global BtnOn
     
     if (pidx >= len(PlayList)):
         return
@@ -110,8 +89,7 @@ def PlayPlayList(pidx):
     player.playTrack(tfolder, ttrack)
     print(f"playing {tfolder},{ttrack}")
     
-    # turn on one of the four LED under the keys
-    BtnLedBlink(tfolder)
+    BtnOn = tfolder - 1
     
     PlayMode = LISTS
     return
@@ -155,7 +133,9 @@ def PlaySingleTrack(fidx,tidx):
     global TrackCurr
     global ModeCurr
     global PlayMode
-    
+    global VolCurr
+    global BtnOn
+    global BtnArr   
 
     PListCurr = 0
     TrackCurr = tidx
@@ -167,8 +147,10 @@ def PlaySingleTrack(fidx,tidx):
     player.playTrack(tfolder, ttrack)
     
     # turn on one of the four LED under the keys
-    BtnLedBlink(tfolder)
-    
+    print(f"Btnon {BtnOn}")  
+    BtnOn = BtnLedBlink(BtnArr, tfolder)
+    print(f"*Btnon {BtnOn}")
+            
     PlayMode = SINGLE
     return
 
@@ -224,48 +206,14 @@ def DspPattern():
         #sleep(4)
     return
 
-################################################################
-# turn off all button leds
-################################################################
-def BtnLedOff():
-    for i in range(4):
-        BtnArr[i].value(0)
- 
-################################################################
-# turn om all button leds
-################################################################
-def BtnLedOn():
-    for i in range(4):
-        BtnArr[i].value(1) 
-        
-################################################################
-# Flash Led
-################################################################
-def BtnLedFlash(times):
-    for i in range(times):
-        BtnLedOff()
-        utime.sleep_ms(400)
-        BtnLedOn()
-        utime.sleep_ms(400)
-    BtnLedOff()
-################################################################
-# blink one LED
-################################################################
-def BtnLedBlink(idx):
-    global BtnOn
-    global BtnOnFlip
     
-    BtnLedOff()
-    j = (idx-1) % 4
-    BtnOn     = j
-    BtnOnFlip = 1
-    BtnArr[BtnOn].value(BtnOnFlip)
 
 ################################################################
 # Check if new card present
 # if yes read
 ################################################################        
 def CheckTag():
+    global player
     global TagPrvCard
     global TagVal1
     global TagVal2
@@ -322,6 +270,7 @@ def CheckTag():
 ####################################################################         
 #def timer_callback(timer):
 def timer_callback():
+    global player
     global PatNext
     global PatMax
     global PatCnt
@@ -340,8 +289,9 @@ def timer_callback():
     global InActivity
     global SSID
     global PASSWORD
+    global Btn
     global BtnOn
-    global BtnOnFlip
+    global BtnIrqFlag
     
     ##########################################################
     # track inactivity; after 30 minutes turn OFF most lights
@@ -364,8 +314,7 @@ def timer_callback():
                 PatNext = 0
             DspByte(PatNext)
         if (BtnOn < 5):
-            BtnOnFlip = (BtnOnFlip + 1) % 2
-            BtnArr[BtnOn].value(BtnOnFlip)
+            BtnArr[BtnOn].toggle()
             
     else:
         DspByte(0)
@@ -390,7 +339,7 @@ def timer_callback():
             volume = TagVal1[2]
             if (volume >=0) and (volume <= 30):
                 VolCurr = volume
-                VolSet(VolCurr)
+                VolSet(player, VolCurr)
                 LockCnt = 0
             return
         
@@ -406,6 +355,7 @@ def timer_callback():
             ListLen = len(PlayList[nnfolder])
             PlayPlayList(nnfolder)
             print(f"playfolder {TagVal1[1]},. {nnfolder}")
+
             LockCnt = 0
             return
         
@@ -445,7 +395,7 @@ def timer_callback():
             firmware_url = "https://raw.githubusercontent.com/suling2358/MusicBox/refs/heads/"
             ota_updater = OTAUpdater(SSID, PASSWORD, firmware_url, "main.py")
             ota_updater.download_and_install_update_if_available()
-            BtnLedFlash(5)
+            BtnFlash(5)
             LockCnt = 0
             return        
         return    
@@ -453,32 +403,24 @@ def timer_callback():
     ###############################################################
     # section for processing the buttons
     ###############################################################
-    BtnState[1] = Btn1.value()   
-    BtnState[2] = Btn2.value()   
-    BtnState[3] = Btn3.value()
-    BtnState[4] = Btn4.value()
-
-    
-    # now see if any of the buttons has been pressed
-    if (BtnState[1] == 0):
-        ListLen = len(PlayList[1])
-        PlayPlayList(1)
-        LockCnt = 0
-        return
-    elif (BtnState[2] == 0):
-        ListLen = len(PlayList[2])
-        PlayPlayList(2)
-        LockCnt = 0
-        return
-    elif (BtnState[3] == 0):
-        ListLen = len(PlayList[3])
-        PlayPlayList(3)
-        LockCnt = 0
-        return
-    elif (BtnState[4] == 0):
-        ListLen = len(PlayList[4])
-        PlayPlayList(4)
-        return        
+    for i in range(4):
+        if (BtnIrqFlag[i] == 1):
+            player.playTrack(5, 1)
+            utime.sleep_ms(100)
+            ListLen = len(PlayList[i+1])
+            PlayPlayList(i+1)
+            BtnIrqFlag[i] = 2
+            LockCnt = 0
+            BtnLedOff(BtnArr)
+            BtnOn   = i
+            print(f"playing {(i+1)}")
+        
+        elif (BtnIrqFlag[i] == 2) and (BtnLockCnt[i] > 4): 
+            BtnLedOneOff(i)
+            BtnIrqFlag[i] = 0    
+            Btn[i].irq(trigger=machine.Pin.IRQ_RISING, handler=BtnIntp[i])       
+        BtnLockCnt[i] = BtnLockCnt[i] + 1
+         
     
     ###################################################################
     # check IR remote for control commands
@@ -487,10 +429,10 @@ def timer_callback():
         print('Data {:02x} Addr {:04x}'.format(ir_data, ir_addr))
         if (ir_data == RMVOLUP):                     # Vol+
             VolCurr = VolCurr + 1
-            VolSet(VolCurr)
+            VolSet(player, VolCurr)
         elif (ir_data == RMVOLDN):                   # Vol-
             VolCurr = VolCurr - 1
-            VolSet(VolCurr)
+            VolSet(player, VolCurr)
         elif (ir_data == RMINPUT):
             PlaySingleTrack(1,1)                     # Input Key
             LockCnt = 0
@@ -560,7 +502,7 @@ def timer_callback():
         else:
             # done playing single track
             PlayMode = IDLE
-            BtnLedOff()
+            BtnLedOff(BtnArr)
             BtnOn = 99
     
             return       
@@ -578,7 +520,6 @@ TX_PIN   = 16
 RX_PIN   = 17
 BUSY_PIN = 9
 HwdBusyPin=Pin(BUSY_PIN, Pin.IN, Pin.PULL_UP)
-
 
 #PlayList defs [folder, track] format
 PlayList = [[[1,1]],                                                                                           #not used
@@ -601,8 +542,8 @@ ListCnt    = 0
 # now actually create the instance, reset and read stored volume data
 player=DFPlayer(UART_INSTANCE, TX_PIN, RX_PIN, BUSY_PIN)
 player.reset()
-#sleep(2)
-ReadVol()
+VolCurr = ReadVol()
+print(f"read {VolCurr}")
 
 # setup IR Remote callback
 #ir = NEC_16(Pin(5, Pin.IN), ir_callback)
@@ -610,32 +551,6 @@ ir_data = 0
 ir_addr = 0
 ir = NEC_16(Pin(Irs, Pin.IN), ir_callback)
 
-#####################################################################
-# Keys and Key Led
-######################################################################
-BTN1     = 10
-BTN2     = 11
-BTN3     = 12
-BTN4     = 13
-BTNLED1  = 6
-BTNLED2  = 7
-BTNLED3  = 14
-BTNLED4  = 15
-Btn1 = Pin(BTN1, Pin.IN, Pin.PULL_UP)
-Btn2 = Pin(BTN2, Pin.IN, Pin.PULL_UP)
-Btn3 = Pin(BTN3, Pin.IN, Pin.PULL_UP)
-Btn4 = Pin(BTN4, Pin.IN, Pin.PULL_UP)
-BtnLed1  = Pin(BTNLED1, Pin.OUT)
-BtnLed2  = Pin(BTNLED2, Pin.OUT)
-BtnLed3  = Pin(BTNLED3, Pin.OUT)
-BtnLed4  = Pin(BTNLED4, Pin.OUT)
-BtnArr   = [BtnLed1, BtnLed2, BtnLed3, BtnLed4]
-BtnOn    = 99
-BtnOnFlip = 0
-BtnState = [0,1,1,1,1]
-
-# init key LED to OFF
-BtnLedOff()
     
 ######################################################################
 # RFID MFRC522 reader
@@ -643,8 +558,8 @@ BtnLedOff()
 reader = MFRC522(spi_id=0,sck=2,miso=4,mosi=3,cs=1,rst=0)
 TagPrvCard = [0]
 TagCmd     = 0
-TagVal1    = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16]
-TagVal2    = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16]
+TagVal1    = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17]
+TagVal2    = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17]
 TagCnt     = 0
 
 ######################################################################
@@ -665,40 +580,10 @@ TicCurr    = 0
 
 TicLast = utime.ticks_ms()
 #Tic = Timer(period=TICPD, mode=Timer.PERIODIC, callback=timer_callback)
-
-######################################################################
-# flash to indicate release
-######################################################################
-nnrel = Release & 0x1
-BtnArr[3].value(nnrel)
-nnrel = (Release >> 1) & 0x01
-BtnArr[2].value(nnrel)
-nnrel = (Release >> 2) & 0x01
-BtnArr[1].value(nnrel)
-nnrel = (Release >> 3) & 0x01
-BtnArr[0].value(nnrel)
+BtnRelease(BtnArr, Release)
 sleep(3)
-print("Go")
-
-######################################################################
-# TestOne: Led under the switch
-######################################################################
-if (TestOne == True):
-    while True:
-        BtnLedOff()
-        sleep(2)
-        for i in range(4):
-            BtnArr[i].value(1)
-            sleep(1)
-        sleep(1)
-
-######################################################################
-# TestTwo: Connect with DFPlayer
-######################################################################
-if (TestTwo == True):
-    player.playTrack(1, 1)
-    while True:
-        sleep(1)
+BtnLedOff(BtnArr)
+print("Go");
 
 ######################################################################
 # code loop
