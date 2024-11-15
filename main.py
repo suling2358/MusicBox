@@ -14,7 +14,7 @@ from DspPattern import Pattern
 from globvars import *
 from fnKeys import *
 
-Release = const(5)
+Release = const(15)
 TestOne = False
 TestTwo = False
 
@@ -144,7 +144,7 @@ def NextPlayList():
         TrackCurr = 0
         PlayMode  = IDLE
         BtnOn = 99
-        BtnLedOff()
+        BtnLedOff(BtnArr)
         return
     else:
         tfolder = PlayList[PListCurr][TrackCurr][0]
