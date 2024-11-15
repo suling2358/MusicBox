@@ -391,11 +391,11 @@ def timer_callback():
                 tpass = tpass + chr(TagVal2[i+2])
             SSID = tssid
             PASSWORD = tpass
-            BtnLedOn()
+            BtnLedOn(BtnArr)
             firmware_url = "https://raw.githubusercontent.com/suling2358/MusicBox/refs/heads/"
             ota_updater = OTAUpdater(SSID, PASSWORD, firmware_url, "main.py")
             ota_updater.download_and_install_update_if_available()
-            BtnFlash(5)
+            BtnFlash(BtnArr, 5)
             LockCnt = 0
             return        
         return    
