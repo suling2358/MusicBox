@@ -10,39 +10,13 @@ from ir_rx.nec import NEC_16
 from ir_rx.print_error import print_error
 from micropython import const
 from ota import OTAUpdater
-from DspPattern import Pattern
+from DspPattern import *
 from globvars import *
 from fnKeys import *
 
-Release = const(15)
+Release = const(4)
 TestOne = False
 TestTwo = False
-
-###################################################################
-# IR remote for control commands - Vzio Remote
-###################################################################
-VZVOLUP  = const(0x02)
-VZVOLDN  = const(0x03)
-VZINPUT  = const(0x2F)
-VZEXIT   = const(0x49)
-VZAMZN   = const(0xEA)
-VZNFLX   = const(0XEB)
-VZMGO    = const(0xED)
-VZRED    = const(0x54)
-VZYELLOW = const(0x52)
-VZBLUE   = const(0x53)
-VZGREEN  = const(0x55)
-
-###################################################################
-# IR remote for control commands - BLS Light
-###################################################################
-BLVOLUP   = const(0x09)
-BLVOLDN   = const(0x07)
-BLCOOL    = const(0x42)
-BLNATURAL = const(0x52)
-BLWARM    = const(0x4A)
-
-
 
 
 ################################################################
@@ -55,26 +29,6 @@ else:
     Irs = 5
     FolderList = [1,2,3,4]
 
-
-Ser0 = Pin(SER0, Pin.OUT)
-Ser1 = Pin(SER1, Pin.OUT)
-Ser2 = Pin(SER2, Pin.OUT)
-Ser3 = Pin(SER3, Pin.OUT)
-Srclk = Pin(SRCLK, Pin.OUT)
-Rclk = Pin(RCLK, Pin.OUT)
-
-LData0 = 0xAA
-LData1 = 0xAA
-LData2 = 0xAA
-LData3 = 0xBB
-
-Srclk.value(0)
-Rclk.value(1)
-
-PatMax  = len(Pattern)
-PatNext = 0
-PatCnt  = 0
-PatChg  = 1
 
 ####################################################################
 # Pre-defined Subroutines
@@ -138,6 +92,7 @@ def NextPlayList():
         
     LockCnt = 0
     TrackCurr = TrackCurr + 1
+    print(f"next len {ListLen}, track {TrackCurr}")
     # check to seeif we are at the end of the list
     if (TrackCurr >= ListLen):
         PlistCurr = -1
@@ -182,60 +137,7 @@ def PlaySingleTrack(fidx,tidx):
             
     PlayMode = SINGLE
     return
-
-################################################################
-#LED Display Routine
-################################################################
-#Push out one byte
-def DspByte(idx):
-    global Pattern
-    global Ser0
-    global Ser1
-    global Ser2
-    global Ser3
-    global Srclk
-    global Rclk
-    
-    lc0 = Pattern[idx][0]
-    lc1 = Pattern[idx][1]
-    lc2 = Pattern[idx][2]
-    lc3 = Pattern[idx][3]
-    #print(idx,lc0,lc1,lc2,lc3)
-
-    for i in range(8):
-        #and out last bit
-        Ser0.value(lc0 & 0x1)
-        Ser1.value(lc1 & 0x1)
-        Ser2.value(lc2 & 0x1)
-        Ser3.value(lc3 & 0x1)
-        #clock in this bit
-        Srclk.value(1)
-        utime.sleep_us(2)
-        Srclk.value(0)
-        lc0 = lc0 >> 1
-        lc1 = lc1 >> 1
-        lc2 = lc2 >> 1
-        lc3 = lc3 >> 1
-
-    #Done shifting, display output        
-    Rclk.value(1)
-    utime.sleep_us(2)
-    Rclk.value(0)   
-            
-#Display pattern
-def DspPattern():
-    global LData0
-    global LData1
-    global LData2
-    global LData3
-    global Pattern
-    
-    for i in range(MaxPat):
-        DspByte(i)
-        #sleep(4)
-    return
-
-    
+  
 
 ################################################################
 # Check if new card present
@@ -456,54 +358,19 @@ def timer_callback():
     ###################################################################
     if ir_data > 0:
         print('Data {:02x} Addr {:04x}'.format(ir_data, ir_addr))
-                                                    # Vol +
-        if (ir_data == VZVOLUP) or (ir_data == BLVOLUP):               
-            VolCurr = VolCurr + 1
-            VolSet(player, VolCurr)
-                                                    # Vol -
-        elif (ir_data == VZVOLDN) or (ir_data == BLVOLDN):  
-            VolCurr = VolCurr - 1
-            VolSet(player, VolCurr)
-        elif (ir_data == VZINPUT):
-            PlaySingleTrack(1,1)                     # Input Key
-            LockCnt = 0
-        elif (ir_data == VZEXIT):
-            PlaySingleTrack(2,5)                     # Exit Key
-            LockCnt = 0
-        elif (ir_data == VZAMZN):
-            PlaySingleTrack(2,1)                     # Amazon
-            LockCnt = 0
-        elif (ir_data == VZNFLX):
-            PlaySingleTrack(2,2)                     # Netflix
-            LockCnt = 0
-        elif (ir_data == VZMGO):
-            PlaySingleTrack(2,5)                     # MGO
-            LockCnt = 0
-        elif (ir_data == VZRED):
-            j = FolderList[1-1]
-            ListLen = len(PlayList[j])               # Red button
-            PlayPlayList(j)
-            LockCnt = 0
-        elif (ir_data == VZYELLOW) or (ir_data == BLNATURAL):
-            PlaySingleTrack(3,10) 
-            LockCnt = 0
-        elif (ir_data == VZGREEN):
-            j = FolderList[4-1]
-            ListLen = len(PlayList[j])               
-            PlayPlayList(j)
-            LockCnt = 0
-        elif (ir_data == VZBLUE):
-            j = FolderList[2-1]
-            ListLen = len(PlayList[j])               
-            PlayPlayList(j)
-            LockCnt = 0 
+        dictdata = BLRemote.get(ir_data)
+        print(f"dictdata {dictdata[0]}, {dictdata[1]}")
+        if (dictdata[0] == 99):                     # Volume Special Case
+            if (dictdata[1] == 1):
+                VolCurr = VolCurr - 1               # Vol-
+                VolSet(player, VolCurr)   
+            elif (dictdata[1] == 2):
+                VolCurr = VolCurr + 1               # Vol+
+                VolSet(player, VolCurr)
         else:
-            pn = len(PlayList) -  1
-            j  = (ir_data % pn) + 1
-
-            ListLen = len(PlayList[j])
-            PlayPlayList(j)
-            print(f"playlist {j},len {ListLen}")
+            tfolder = dictdata[0]
+            ttrack  = dictdata[1]
+            PlaySingleTrack(tfolder,ttrack)                     
             LockCnt = 0
             
         ir_data = 0
@@ -551,13 +418,17 @@ BUSY_PIN = 9
 HwdBusyPin=Pin(BUSY_PIN, Pin.IN, Pin.PULL_UP)
 
 #PlayList defs [folder, track] format
-PlayList = [[[1,1]],                                                                                           #not used
-            [[1,1],[1,2],[1,3],[1,4],[1,5],[1,6],[1,7],[1,8],[1,9],[1,10],[1,11],[1,12]],                      #playlist 1
-            [[2,1],[2,2],[2,3],[2,4],[2,5],[2,6],[2,7],[2,8],[2,9],[2,10],[2,11],[2,12],[2,13],[2,14],[2,15],[2,16],
-             [2,17],[2,18],[2,19],[2,20],[2,21]],                                                              #         2
-            [[3,1],[3,2],[3,3],[3,4],[3,5],[3,6],[3,7],[3,8],[3,9],[3,10],[3,11],[3,12],[3,13],[3,14],[3,15],
-              [3,17],[3,18],[3,19],[3,20],[3,21],[3,22]],                                                      #         3
-            [[4,1],[4,2],[4,3]]                                                                                #         4
+PlayList = [[[1,1]],                                                                #not used
+            [[1,1], [1,2], [1,3], [1,4], [1,5], [1,6], [1,7], [1,8], [1,9],[1,10],
+             [1,11],[1,12]],                                                        #playlist 1
+            [[2,1], [2,2], [2,3], [2,4], [2,5], [2,6], [2,7], [2,8], [2,9], [2,10],
+             [2,11],[2,12],[2,13],[2,14],[2,15],[2,16],[2,17],[2,18],[2,19],[2,20],
+             [2,21]],                                                               #         2
+            [[3,1], [3,2], [3,3], [3,4], [3,5], [3,6], [3,7], [3,8], [3,9], [3,10],
+             [3,11],[3,12],[3,13],[3,14],[3,15],[3,16],[3,17],[3,18],[3,19],[3,20],
+             [3,21],[3,22],[3,23]],                                                 #         3
+            [[4,1], [4,2], [4,3], [4,4], [4,5], [4,6], [4,7], [5,8], [4,9], [4,10],
+             [4,11],[4,12],[4,13]]                                                  #         4
            ]
 
 TrackCurr  = 1
@@ -567,6 +438,11 @@ IDLE       = 0
 PlayMode   = IDLE
 ListLen    = 0
 ListCnt    = 0
+
+BLRemote   = {0x07:[99,1], 0x08:[1,2], 0x09:[99,2], 0x0C:[2,2],  0x0D:[2,8],  0x16:[2,5],  0x18:[2,9],  0x19:[2.13],
+              0x19:[2,17], 0x40:[3,2], 0x42:[3,12], 0x43:[3,20], 0x44:[1,4],  0x45:[1,11], 0x47:[1,2],  0x4A:[2,19],
+              0x52:[2,16], 0x5A:[2,15],0x5E:[3,10] }
+      
 
 # now actually create the instance, reset and read stored volume data
 player=DFPlayer(UART_INSTANCE, TX_PIN, RX_PIN, BUSY_PIN)
@@ -614,6 +490,7 @@ sleep(3)
 BtnLedOff(BtnArr)
 print("Go");
 
+    
 ######################################################################
 # code loop
 ######################################################################
