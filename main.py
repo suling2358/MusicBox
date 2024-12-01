@@ -6,7 +6,8 @@ from picodfplayer import DFPlayer
 from picodfplayer import VolSet, WriteVol, ReadVol
 from mfrc522 import MFRC522
 from array import *
-from ir_rx.nec import NEC_16
+#from ir_rx.nec import NEC_16
+from ir_rx.sony import SONY_20
 from ir_rx.print_error import print_error
 from micropython import const
 from ota import OTAUpdater
@@ -14,7 +15,7 @@ from DspPattern import *
 from globvars import *
 from fnKeys import *
 
-Release = const(4)
+Release = const(9)
 TestOne = False
 TestTwo = False
 
@@ -47,6 +48,37 @@ def ir_callback(data, addr, ctrl):
 ####################################################################
 # DFPlayer routines
 ####################################################################
+
+####################################################################
+# PlayPlayFolder: play all tracks in a folder
+####################################################################
+def PlayPlayFolder(pidx):
+    global FolderCurr
+    global TrackCurr
+    global VolCurr
+    global PlayMode
+    global BtnArr
+    global BtnOn
+    
+    if (pidx >= 4):
+        return
+    
+    FolderCurr  = pidx
+    TrackCurr   = 1
+    tfolder     = FolderCurr
+    ttrack      = TrackCurr
+    
+    player.setVolume(VolCurr)
+    player.playTrack(tfolder, ttrack)
+    print(f"playing {tfolder},{ttrack}")
+    BtnLedOff(BtnArr)
+    
+    BtnOn = tfolder - 1
+    
+    PlayMode = FOLDERS
+    return
+
+
 ####################################################################
 # PlayPlayList: starts playing the a list of tracks
 ####################################################################
@@ -54,7 +86,6 @@ def PlayPlayList(pidx):
     global PlayList
     global PListCurr
     global TrackCurr
-    global ModeCurr
     global VolCurr
     global PlayMode
     global BtnArr
@@ -111,6 +142,38 @@ def NextPlayList():
         return
 
 ####################################################################
+# NextPlayFolder: play the next track in the folder
+####################################################################
+def NextPlayFolder():
+    global FolderCurr
+    global TrackCurr
+    global PlayMode
+    global LockCnt
+    global BtnOn
+        
+    # try to play next track in folder
+    LockCnt = 0
+    TrackCurr = TrackCurr + 1
+    tfolder   = FolderCurr
+    ttrack    = TrackCurr
+    player.setVolume(VolCurr)
+    player.playTrack(tfolder, ttrack)
+    print(f"next in folder {ttrack}")
+    utime.sleep_ms(1)
+    # test if busy
+    if (HwdBusyPin.value() == 0):        # yes, busy
+        LockCnt = 0
+        return
+    else:                                # not busy, done playing folder
+        print("folder done")
+        FolderCurr = -1
+        TrackCurr = 0
+        PlayMode  = IDLE
+        BtnOn = 99
+        BtnLedOff(BtnArr)
+        return
+
+####################################################################
 # PlaySingleTrack: play just one track from a folder
 ####################################################################
 def PlaySingleTrack(fidx,tidx):
@@ -120,7 +183,8 @@ def PlaySingleTrack(fidx,tidx):
     global PlayMode
     global VolCurr
     global BtnOn
-    global BtnArr   
+    global BtnArr
+    global player
 
     PListCurr = 0
     TrackCurr = tidx
@@ -138,6 +202,11 @@ def PlaySingleTrack(fidx,tidx):
     PlayMode = SINGLE
     return
   
+def PlayBeep():
+    global player
+    
+    player.playTrack(5, 1)
+    utime.sleep_ms(100)
 
 ################################################################
 # Check if new card present
@@ -223,6 +292,7 @@ def timer_callback():
     global Btn
     global BtnOn
     global BtnIrqFlag
+    global FirstFlag
     
     ##########################################################
     # track inactivity; after 30 minutes turn OFF most lights
@@ -336,20 +406,24 @@ def timer_callback():
     ###############################################################
     for i in range(4):
         if (BtnIrqFlag[i] == 1):
-            player.playTrack(5, 1)
-            utime.sleep_ms(100)
+            PlayBeep()
             ListLen = len(PlayList[i+1])
-            PlayPlayList(i+1)
+            PlayPlayFolder(i+1)
             BtnIrqFlag[i] = 2
             LockCnt = 0
             BtnLedOff(BtnArr)
             BtnOn   = i
-            print(f"playing {(i+1)}")
+            print(f"playing folder {(i+1)}")
         
         elif (BtnIrqFlag[i] == 2) and (BtnLockCnt[i] > 4): 
             BtnLedOneOff(i)
             BtnIrqFlag[i] = 0    
-            Btn[i].irq(trigger=machine.Pin.IRQ_RISING, handler=BtnIntp[i])       
+            Btn[i].irq(trigger=machine.Pin.IRQ_RISING, handler=BtnIntp[i])
+            if (FirstFlag == True):
+                FirstFlag = False
+                PlayBeep()
+                PlayBeep()
+                
         BtnLockCnt[i] = BtnLockCnt[i] + 1
          
     
@@ -358,21 +432,23 @@ def timer_callback():
     ###################################################################
     if ir_data > 0:
         print('Data {:02x} Addr {:04x}'.format(ir_data, ir_addr))
-        dictdata = BLRemote.get(ir_data)
-        print(f"dictdata {dictdata[0]}, {dictdata[1]}")
-        if (dictdata[0] == 99):                     # Volume Special Case
-            if (dictdata[1] == 1):
-                VolCurr = VolCurr - 1               # Vol-
-                VolSet(player, VolCurr)   
-            elif (dictdata[1] == 2):
-                VolCurr = VolCurr + 1               # Vol+
-                VolSet(player, VolCurr)
+        dictdata = SonyRemote.get(ir_data)
+        if (dictdata):
+            print(f"dictdata {dictdata[0]}, {dictdata[1]}")
+            if (dictdata[0] == 99):                     # Volume Special Case
+                if (dictdata[1] == 1):
+                    VolCurr = VolCurr + 1               # Vol-
+                    VolSet(player, VolCurr)   
+                elif (dictdata[1] == 2):
+                    VolCurr = VolCurr - 1               # Vol+
+                    VolSet(player, VolCurr)
+            else:
+                tfolder = dictdata[0]
+                ttrack  = dictdata[1]
+                PlaySingleTrack(tfolder,ttrack)                     
+                LockCnt = 0
         else:
-            tfolder = dictdata[0]
-            ttrack  = dictdata[1]
-            PlaySingleTrack(tfolder,ttrack)                     
-            LockCnt = 0
-            
+            print("dict not found")
         ir_data = 0
         return
     
@@ -382,21 +458,20 @@ def timer_callback():
     # check to see if we need to continue playing to next track
     # only if the player is not busy
     ###################################################################
+    
+    # still busy
+    if (HwdBusyPin.value() == 0): 
+        return
     if (PlayMode == LISTS):
-        #already playing a list, wait for not busy
-        if (HwdBusyPin.value() == 0): 
-            return
-        else:
-            print("Next")
-            # ready for next file in list        
-            NextPlayList()      
-            return    
+        print("Next on List")     
+        NextPlayList()      
+        return
+    elif (PlayMode == FOLDERS):
+        NextPlayFolder()      
+        return
+        
     elif (PlayMode == SINGLE):
-        #already playing a list, wait for not busy
-        if (HwdBusyPin.value() == 0): 
-            return
-        else:
-            # done playing single track
+        # done playing single track, reset for Idle
             PlayMode = IDLE
             BtnLedOff(BtnArr)
             BtnOn = 99
@@ -439,10 +514,13 @@ PlayMode   = IDLE
 ListLen    = 0
 ListCnt    = 0
 
-BLRemote   = {0x07:[99,1], 0x08:[1,2], 0x09:[99,2], 0x0C:[2,2],  0x0D:[2,8],  0x16:[2,5],  0x18:[2,9],  0x19:[2.13],
-              0x19:[2,17], 0x40:[3,2], 0x42:[3,12], 0x43:[3,20], 0x44:[1,4],  0x45:[1,11], 0x47:[1,2],  0x4A:[2,19],
-              0x52:[2,16], 0x5A:[2,15],0x5E:[3,10] }
-      
+#BLRemote   = {0x07:[99,1], 0x08:[1,2], 0x09:[99,2], 0x0C:[2,2],  0x0D:[2,8],  0x16:[2,5],  0x18:[2,9],  0x19:[2,13],
+#              0x1C:[2,17], 0x40:[3,2], 0x42:[3,12], 0x43:[3,20], 0x44:[1,4],  0x45:[1,11], 0x47:[1,2],  0x4A:[2,19],
+#              0x52:[2,16], 0x5A:[2,15],0x5E:[3,10] }
+SonyRemote   = {0x12:[99,1], 0x13:[99,2], 0x69:[1,1],  0x66:[2,2],  0x67:[3,3],  0x68:[2,1],  0x4B:[2,19], 0x42:[1,2],
+                0x18:[1,3],  0x15:[1,11], 0x25:[2,5],  0x16:[2,13], 0x01:[3,19], 0x02:[3,20], 0x03:[3,5],  0x04:[3,10],
+                0x05:[3,12], 0x06:[2,9],  0x07:[2,16], 0x08:[2,21], 0x09:[2,18], 0x64:[1,4],  0x63:[1,7],  0x41:[1,7],
+                0x2C:[1,12], 0x29:[1,9],  0x43:[1,8],  0x3F:[2,8] }      
 
 # now actually create the instance, reset and read stored volume data
 player=DFPlayer(UART_INSTANCE, TX_PIN, RX_PIN, BUSY_PIN)
@@ -454,7 +532,7 @@ print(f"read {VolCurr}")
 #ir = NEC_16(Pin(5, Pin.IN), ir_callback)
 ir_data = 0
 ir_addr = 0
-ir = NEC_16(Pin(Irs, Pin.IN), ir_callback)
+ir = SONY_20(Pin(Irs, Pin.IN), ir_callback)
 
     
 ######################################################################
@@ -463,8 +541,8 @@ ir = NEC_16(Pin(Irs, Pin.IN), ir_callback)
 reader = MFRC522(spi_id=0,sck=2,miso=4,mosi=3,cs=1,rst=0)
 TagPrvCard = [0]
 TagCmd     = 0
-TagVal1    = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17]
-TagVal2    = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17]
+TagVal1    = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18]
+TagVal2    = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18]
 TagCnt     = 0
 
 ######################################################################
@@ -486,9 +564,42 @@ TicCurr    = 0
 TicLast = utime.ticks_ms()
 #Tic = Timer(period=TICPD, mode=Timer.PERIODIC, callback=timer_callback)
 BtnRelease(BtnArr, Release)
-sleep(3)
+#sleep(3)
 BtnLedOff(BtnArr)
+FirstFlag = True
 print("Go");
+
+while (TestOne == True):
+    BtnLedOff(BtnArr)
+    sleep(1)
+    BtnLedOn(BtnArr)
+    sleep(1)
+    
+while (TestTwo == True):
+    sleep(3)
+    VolCurr = 11
+    VolSet(player, VolCurr)
+    track = 1
+    player.playTrack(1, track)
+    cnt = 0
+    first = True
+    while True:
+        # busy playing track
+        if (HwdBusyPin.value() == 0):
+            cnt = cnt + 1
+        # not busy, go to next if there is one there
+        else:
+            if (cnt > 2):
+                print(f"Track {track} len {cnt}")
+                track = track + 1              
+                player.playTrack(1, track)
+                cnt = 0
+            else:
+                print(f"last len {cnt}")
+                while True:
+                    sleep(1)
+
+        utime.sleep_ms(1)
 
     
 ######################################################################
