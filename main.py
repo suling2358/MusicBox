@@ -15,7 +15,7 @@ from DspPattern import *
 from globvars import *
 from fnKeys import *
 
-Release = const(9)
+Release = const(10)
 TestOne = False
 TestTwo = False
 
@@ -307,7 +307,7 @@ def timer_callback():
     # interrupts happen faster then display changes
     # PatCnt counts up until the display should be changed
     PatCnt = PatCnt + 1
-    if (InActivity == False):     
+    if (InActivity == False) and (FirstFlag == False):     
         if (PatCnt > PatChg): 
             PatCnt = 0
             PatNext = PatNext + 1
@@ -317,9 +317,8 @@ def timer_callback():
         if (BtnOn < 5):
             BtnArr[BtnOn].toggle()
             
-    else:
-        DspByte(0)
-        
+    elif (FirstFlag == False):
+        DspByte(0)              
 
     ################################################################
     # Lock out period
@@ -565,7 +564,7 @@ TicLast = utime.ticks_ms()
 #Tic = Timer(period=TICPD, mode=Timer.PERIODIC, callback=timer_callback)
 BtnRelease(BtnArr, Release)
 #sleep(3)
-BtnLedOff(BtnArr)
+#BtnLedOff(BtnArr)
 FirstFlag = True
 print("Go");
 
@@ -577,29 +576,7 @@ while (TestOne == True):
     
 while (TestTwo == True):
     sleep(3)
-    VolCurr = 11
-    VolSet(player, VolCurr)
-    track = 1
-    player.playTrack(1, track)
-    cnt = 0
-    first = True
-    while True:
-        # busy playing track
-        if (HwdBusyPin.value() == 0):
-            cnt = cnt + 1
-        # not busy, go to next if there is one there
-        else:
-            if (cnt > 2):
-                print(f"Track {track} len {cnt}")
-                track = track + 1              
-                player.playTrack(1, track)
-                cnt = 0
-            else:
-                print(f"last len {cnt}")
-                while True:
-                    sleep(1)
-
-        utime.sleep_ms(1)
+ 
 
     
 ######################################################################
