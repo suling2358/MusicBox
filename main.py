@@ -15,7 +15,7 @@ from DspPattern import *
 from globvars import *
 from fnKeys import *
 
-Release = const(10)
+Release = const(11)
 TestOne = False
 TestTwo = False
 
@@ -60,7 +60,7 @@ def PlayPlayFolder(pidx):
     global BtnArr
     global BtnOn
     
-    if (pidx >= 4):
+    if (pidx > 4):
         return
     
     FolderCurr  = pidx
@@ -406,13 +406,13 @@ def timer_callback():
     for i in range(4):
         if (BtnIrqFlag[i] == 1):
             PlayBeep()
-            ListLen = len(PlayList[i+1])
-            PlayPlayFolder(i+1)
+            j = i + 1
+            PlayPlayFolder(j)
             BtnIrqFlag[i] = 2
             LockCnt = 0
             BtnLedOff(BtnArr)
             BtnOn   = i
-            print(f"playing folder {(i+1)}")
+            print(f"playing folder {j}")
         
         elif (BtnIrqFlag[i] == 2) and (BtnLockCnt[i] > 4): 
             BtnLedOneOff(i)
@@ -421,6 +421,7 @@ def timer_callback():
             if (FirstFlag == True):
                 FirstFlag = False
                 PlayBeep()
+                utime.sleep_ms(100)
                 PlayBeep()
                 
         BtnLockCnt[i] = BtnLockCnt[i] + 1
@@ -441,6 +442,9 @@ def timer_callback():
                 elif (dictdata[1] == 2):
                     VolCurr = VolCurr - 1               # Vol+
                     VolSet(player, VolCurr)
+                elif (dictdata[1] == 0):
+                    VolCurr = 0                         # Mute
+                    VolSet(player, VolCurr)    
             else:
                 tfolder = dictdata[0]
                 ttrack  = dictdata[1]
@@ -516,10 +520,11 @@ ListCnt    = 0
 #BLRemote   = {0x07:[99,1], 0x08:[1,2], 0x09:[99,2], 0x0C:[2,2],  0x0D:[2,8],  0x16:[2,5],  0x18:[2,9],  0x19:[2,13],
 #              0x1C:[2,17], 0x40:[3,2], 0x42:[3,12], 0x43:[3,20], 0x44:[1,4],  0x45:[1,11], 0x47:[1,2],  0x4A:[2,19],
 #              0x52:[2,16], 0x5A:[2,15],0x5E:[3,10] }
-SonyRemote   = {0x12:[99,1], 0x13:[99,2], 0x69:[1,1],  0x66:[2,2],  0x67:[3,3],  0x68:[2,1],  0x4B:[2,19], 0x42:[1,2],
-                0x18:[1,3],  0x15:[1,11], 0x25:[2,5],  0x16:[2,13], 0x01:[3,19], 0x02:[3,20], 0x03:[3,5],  0x04:[3,10],
-                0x05:[3,12], 0x06:[2,9],  0x07:[2,16], 0x08:[2,21], 0x09:[2,18], 0x64:[1,4],  0x63:[1,7],  0x41:[1,7],
-                0x2C:[1,12], 0x29:[1,9],  0x43:[1,8],  0x3F:[2,8] }      
+SonyRemote   = {0x12:[99,1], 0x13:[99,2], 0x14:[99,3], 0x27:[1,1],  0x24:[2,2],  0x25:[3,3],  0x26:[2,1],  0x7C:[2,19], 0x15:[1,11],
+                0x15:[2,13], 0x77:[2,5],  0x3A:[2,5],  0x4D:[2,13], 0x3B:[3,19], 0x65:[1,1],  0x24:[1,2],  0x4B:[1,3],  0x5B:[1,6],
+                0x23:[1,7],  0x60:[1,12], 0x73:[1,10], 0x10:[1,11], 0x11:[1,8],  0x17:[1,4],  0x28:[1,7],  0x1A:[4,1],  0x1B:[4,13],
+                0x56:[4,12], 0x3C:[4,11], 0x19:[4,10], 0x3D:[4,9],  0x18:[4,8],  0x76:[4,7],  0x1D:[4,6],  0x3E:[4,5],
+                0x01:[3,19], 0x02:[3,20], 0x03:[3,5],  0x04:[3,10], 0x05:[3,12], 0x06:[2,9],  0x07:[2,16], 0x08:[2,21], 0x09:[2,18] }      
 
 # now actually create the instance, reset and read stored volume data
 player=DFPlayer(UART_INSTANCE, TX_PIN, RX_PIN, BUSY_PIN)
@@ -576,6 +581,10 @@ while (TestOne == True):
     
 while (TestTwo == True):
     sleep(3)
+    print("play test track")
+    player.playTrack(1, 1)
+    while True:
+        sleep(1)
  
 
     
