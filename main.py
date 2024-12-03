@@ -15,7 +15,7 @@ from DspPattern import *
 from globvars import *
 from fnKeys import *
 
-Release = const(11)
+Release = const(12)
 TestOne = False
 TestTwo = False
 
@@ -442,7 +442,7 @@ def timer_callback():
                 elif (dictdata[1] == 2):
                     VolCurr = VolCurr - 1               # Vol+
                     VolSet(player, VolCurr)
-                elif (dictdata[1] == 0):
+                elif (dictdata[1] == 3):
                     VolCurr = 0                         # Mute
                     VolSet(player, VolCurr)    
             else:
